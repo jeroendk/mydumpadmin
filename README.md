@@ -1,3 +1,7 @@
+Based on: https://github.com/tecrahul/mydumpadmin
+Added Daily, Weekly, Monthly (local) back-ups with cleanup.
+
+
 ## Advance MySQL Database Backup Script
 
 In this repository, you will get an advance MySQL database backup script with mutiple options. This script allows you to backup databases on local and upload to FTP, SFTP and S3 bucket. 
