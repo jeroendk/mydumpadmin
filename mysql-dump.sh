@@ -9,7 +9,7 @@
 ###
 ##########################################################################
 
-CONFIGFILE=/etc/mydumpadmin/settings.conf
+CONFIGFILE=/home/jelastic/mydumpadmin/settings.conf
 
 source $CONFIGFILE
 TIME_FORMAT='%d%m%Y-%H%M'
@@ -17,6 +17,11 @@ cTime=$(date +"${TIME_FORMAT}")
 LOGFILENAME=$LOG_PATH/mydumpadmin-${cTime}.txt
 CREDENTIALS="--defaults-file=$CREDENTIAL_FILE"
 
+
+TODAY=$(date +"%Y-%m-%d")
+DAILY_DELETE_NAME="daily-"`date +"%Y-%m-%d" --date '7 days ago'`
+WEEKLY_DELETE_NAME="weekly-"`date +"%Y-%m-%d" --date '5 weeks ago'`
+MONTHLY_DELETE_NAME="monthly-"`date +"%Y-%m-%d" --date '12 months ago'`
 
 [ ! -d $LOG_PATH ] && ${MKDIR} -p ${LOG_PATH}
 echo "" > ${LOGFILENAME}
@@ -37,13 +42,16 @@ db_backup(){
         fi
 
         db=""
-        [ ! -d $BACKUPDIR ] && ${MKDIR} -p $BACKUPDIR
-                [ $VERBOSE -eq 1 ] && echo "*** Dumping MySQL Database ***"
-                mkdir -p ${LOCAL_BACKUP_DIR}/${cTime}
+        echo "*** Dumping MySQL Database ***"
+               
         for db in $DATABASES
         do
-                FILE_NAME="${db}.${cTime}.gz"
-                FILE_PATH="${LOCAL_BACKUP_DIR}/${cTime}/"
+        	BACKUP_PATH="$LOCAL_BACKUP_DIR/$db"
+                [[ ! -d "$BACKUP_PATH" ]] && mkdir -p "$BACKUP_PATH"
+                echo "   Creating $BACKUP_PATH/daily-$TODAY.sql.gz"
+                
+                FILE_NAME="daily-$TODAY.sql.gz"
+                FILE_PATH="${BACKUP_PATH}/"
                 FILENAMEPATH="$FILE_PATH$FILE_NAME"
                 [ $VERBOSE -eq 1 ] && echo -en "Database> $db... \n"
                 ${MYSQLDUMP} ${CREDENTIALS} -h ${MYSQL_HOST} -P $MYSQL_PORT $db | ${GZIP} -9 > $FILENAMEPATH
@@ -51,9 +59,35 @@ db_backup(){
                 [ $FTP_ENABLE -eq 1 ] && ftp_backup
                 [ $SFTP_ENABLE -eq 1 ] && sftp_backup
                 [ $S3_ENABLE -eq 1 ] && s3_backup
+                
+                # delete old backups
+                if [ -f "$BACKUP_PATH/$DAILY_DELETE_NAME.sql.gz" ]; then
+                  echo "   Deleting $BACKUP_PATH/$DAILY_DELETE_NAME.sql.gz"
+                  rm -rf $BACKUP_PATH/$DAILY_DELETE_NAME.sql.gz
+                fi
+                if [ -f "$BACKUP_PATH/$WEEKLY_DELETE_NAME.sql.gz" ]; then
+                  echo "   Deleting $BACKUP_PATH/$WEEKLY_DELETE_NAME.sql.gz"
+                  rm -rf $BACKUP_PATH/$WEEKLY_DELETE_NAME.sql.gz
+                fi
+                if [ -f "$BACKUP_PATH/$MONTHLY_DELETE_NAME.sql.gz" ]; then
+                  echo "   Deleting $BACKUP_PATH/$MONTHLY_DELETE_NAME.sql.gz"
+                  rm -rf $BACKUP_PATH/$MONTHLY_DELETE_NAME.sql.gz
+                fi
+                
+                # make weekly
+                if [ `date +%u` -eq 7 ];then
+                  cp $BACKUP_PATH/daily-$TODAY.sql.gz $BACKUP_PATH/weekly-$TODAY.sql.gz
+                fi
+
+                # make monthly
+                if [ `date +%d` -eq 25 ];then
+                  cp $BACKUP_PATH/daily-$TODAY.sql.gz $BACKUP_PATH/monthly-$TODAY.sql.gz
+                fi
+                
+                
         done
         [ $VERBOSE -eq 1 ] && echo "*** Backup completed ***"
-        [ $VERBOSE -eq 1 ] && echo "*** Check backup files in ${FILE_PATH} ***"
+        [ $VERBOSE -eq 1 ] && echo "*** Check backup files in ${BACKUP_PATH} ***"
 }
 
 ### close_on_error on demand with message ###
