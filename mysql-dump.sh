@@ -126,6 +126,7 @@ ftp_backup(){
 [ $VERBOSE -eq 1 ] && echo "Uploading backup file to FTP"
 ftp -n $FTP_SERVER << EndFTP
 user "$FTP_USERNAME" "$FTP_PASSWORD"
+passive
 binary
 hash
 cd $FTP_UPLOAD_DIR
