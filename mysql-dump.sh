@@ -20,8 +20,8 @@ CREDENTIALS="--defaults-file=$CREDENTIAL_FILE"
 
 TODAY=$(date +"%Y-%m-%d")
 DAILY_DELETE_NAME="daily-"`date +"%Y-%m-%d" --date '7 days ago'`
-WEEKLY_DELETE_NAME="weekly-"`date +"%Y-%m-%d" --date '5 weeks ago'`
-MONTHLY_DELETE_NAME="monthly-"`date +"%Y-%m-%d" --date '12 months ago'`
+WEEKLY_DELETE_NAME="weekly-"`date +"%Y-%m-%d" --date '4 weeks ago'`
+MONTHLY_DELETE_NAME="monthly-"`date +"%Y-%m-%d" --date '1 months ago'`
 
 [ ! -d $LOG_PATH ] && ${MKDIR} -p ${LOG_PATH}
 echo "" > ${LOGFILENAME}
@@ -42,11 +42,12 @@ db_backup(){
         fi
 
         db=""
-        echo "*** Dumping MySQL Database ***"
-               
+        [ ! -d $BACKUPDIR ] && ${MKDIR} -p $BACKUPDIR
+                [ $VERBOSE -eq 1 ] && echo "*** Dumping MySQL Database ***"
+                #mkdir -p ${LOCAL_BACKUP_DIR}/${cTime}
         for db in $DATABASES
         do
-        	BACKUP_PATH="$LOCAL_BACKUP_DIR/$db"
+        		BACKUP_PATH="$LOCAL_BACKUP_DIR/$db"
                 [[ ! -d "$BACKUP_PATH" ]] && mkdir -p "$BACKUP_PATH"
                 echo "   Creating $BACKUP_PATH/daily-$TODAY.sql.gz"
                 
@@ -59,19 +60,25 @@ db_backup(){
                 [ $FTP_ENABLE -eq 1 ] && ftp_backup
                 [ $SFTP_ENABLE -eq 1 ] && sftp_backup
                 [ $S3_ENABLE -eq 1 ] && s3_backup
-                
+              
                 # delete old backups
                 if [ -f "$BACKUP_PATH/$DAILY_DELETE_NAME.sql.gz" ]; then
                   echo "   Deleting $BACKUP_PATH/$DAILY_DELETE_NAME.sql.gz"
                   rm -rf $BACKUP_PATH/$DAILY_DELETE_NAME.sql.gz
+                  DELETE_NAME=$DAILY_DELETE_NAME.sql.gz
+                  [ $SFTP_ENABLE -eq 1 ] && sftp_delete
                 fi
                 if [ -f "$BACKUP_PATH/$WEEKLY_DELETE_NAME.sql.gz" ]; then
                   echo "   Deleting $BACKUP_PATH/$WEEKLY_DELETE_NAME.sql.gz"
                   rm -rf $BACKUP_PATH/$WEEKLY_DELETE_NAME.sql.gz
+                  DELETE_NAME=$WEEKLY_DELETE_NAME.sql.gz
+                  [ $SFTP_ENABLE -eq 1 ] && sftp_delete
                 fi
                 if [ -f "$BACKUP_PATH/$MONTHLY_DELETE_NAME.sql.gz" ]; then
                   echo "   Deleting $BACKUP_PATH/$MONTHLY_DELETE_NAME.sql.gz"
                   rm -rf $BACKUP_PATH/$MONTHLY_DELETE_NAME.sql.gz
+                  DELETE_NAME=$MONTHLY_DELETE_NAME.sql.gz
+                  [ $SFTP_ENABLE -eq 1 ] && sftp_delete
                 fi
                 
                 # make weekly
@@ -134,6 +141,11 @@ lcd $FILE_PATH
 put "$FILE_NAME"
 bye
 EndFTP
+}
+
+sftp_delete() {
+  [ $VERBOSE -eq 1 ] && echo "Deleting ${DELETE_NAME} on remote server over sftp"
+  ssh ${SFTP_USERNAME}@${SFTP_HOST} "del ${SFTP_UPLOAD_DIR}\\$DELETE_NAME"
 }
 
 sftp_backup(){
