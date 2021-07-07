@@ -20,8 +20,8 @@ CREDENTIALS="--defaults-file=$CREDENTIAL_FILE"
 
 TODAY=$(date +"%Y-%m-%d")
 DAILY_DELETE_NAME="daily-"`date +"%Y-%m-%d" --date '7 days ago'`
-WEEKLY_DELETE_NAME="weekly-"`date +"%Y-%m-%d" --date '4 weeks ago'`
-MONTHLY_DELETE_NAME="monthly-"`date +"%Y-%m-%d" --date '1 months ago'`
+WEEKLY_DELETE_NAME="weekly-"`date +"%Y-%m-%d" --date '5 weeks ago'`
+MONTHLY_DELETE_NAME="monthly-"`date +"%Y-%m-%d" --date '12 months ago'`
 
 [ ! -d $LOG_PATH ] && ${MKDIR} -p ${LOG_PATH}
 echo "" > ${LOGFILENAME}
